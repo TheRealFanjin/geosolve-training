@@ -1,33 +1,20 @@
 from torch import nn
 
 
-class Network(nn.Module):
-    def __init__(self, num_classes=94):
+class RN50Model(nn.Module):
+    def __init__(self, resnet_model, num_classes=92):
         super().__init__()
-        self.features = nn.Sequential(
-            nn.Conv2d(3, 128, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),  # -> (128, 256, 256)
-
-            nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),  # -> (256, 128, 128)
-
-            # Global average pool to 1×1
-            nn.AdaptiveAvgPool2d((1, 1))  # -> (256, 1, 1)
-        )
-
-        self.classifier = nn.Sequential(
-            nn.Flatten(),  # -> (256,)
-            nn.Linear(256, 512),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.3),
-            nn.Linear(512, num_classes),
-        )
+        self.resnet_model = resnet_model
+        self.resnet_model.fc = nn.Identity()
+        self.pool = nn.AdaptiveAvgPool2d(1)
+        self.classifier = nn.Linear(2048, num_classes)
 
     def forward(self, x):
-        x = self.features(x)
-        x = self.classifier(x)
-        return x
+        # x: (batch size, num images, channels, height, width)
+        b, n, c, h, w = x.shape
+        x = x.view(b * n, c, h, w)
+        features = self.resnet_model(x)
+        features = features.view(b, n, -1)
+        features = features.mean(dim=1)
+        output = self.classifier(features)
+        return output
