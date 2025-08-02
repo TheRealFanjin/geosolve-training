@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from model import RN50Model
 from image_loader import CustomImageDataset
+import time
 
 INTERNAL_DATA = "dataset/train"
 MODEL_SAVE_PATH = "saved_models/"
@@ -21,7 +22,10 @@ print('Using device:', DEVICE)
 # Input transformations
 transform = transforms.Compose([
     transforms.Resize(256),
-    transforms.CenterCrop(224),
+    transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+    transforms.RandomHorizontalFlip(),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+    transforms.RandomRotation(15),
     transforms.ToTensor(),
     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
 ])
@@ -70,7 +74,7 @@ for epoch in range(1, EPOCHS + 1):
         batch_size = images.size(0)
         epoch_loss += loss.item() * batch_size
 
-    ckpt = f"{MODEL_SAVE_PATH}/model_e{epoch}.pt"
+    ckpt = f"{MODEL_SAVE_PATH}/{int(time.time())}model_e{epoch}.pt"
     torch.save({
         'state_dict': base_model.state_dict(),
         'class_to_idx': class_to_idx,
